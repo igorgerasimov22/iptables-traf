@@ -1,0 +1,51 @@
+---
+- name: Setup inetRouter
+  hosts: inetRouter
+  become: yes
+  tasks:
+    - name: Install necessary packages
+      yum:
+        name:
+          - iproute
+          - iputils
+          - nmap
+        state: present
+
+    - name: Configure inetRouter interfaces
+      command: ip addr add {{ item.address }} dev {{ item.interface }}
+      loop:
+        - { address: "192.168.2.1/26", interface: "eth1" }
+        - { address: "192.168.1.1/25", interface: "eth2" }
+        - { address: "192.168.0.1/28", interface: "eth3" }
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        reload: yes
+
+    - name: Add NAT rules to iptables
+      command: iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+    - name: Save iptables rules
+      command: /sbin/service iptables save
+
+    - name: Install knockd
+      yum:
+        name: knock
+        state: present
+
+    - name: Configure knockd
+      copy:
+        src: knockd.conf
+        dest: /etc/knockd.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Start and enable knockd
+      systemd:
+        name: knockd
+        state: started
+        enabled: yes

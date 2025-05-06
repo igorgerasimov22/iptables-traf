@@ -1,0 +1,35 @@
+---
+- name: Setup inetRouter2
+  hosts: inetRouter2
+  become: yes
+  tasks:
+    - name: Install necessary packages
+      yum:
+        name:
+          - iproute
+          - iputils
+        state: present
+
+    - name: Configure inetRouter2 interfaces
+      command: ip addr add 192.168.0.3/28 dev eth0
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        reload: yes
+
+    - name: Install and configure Nginx
+      yum:
+        name: nginx
+        state: present
+
+    - name: Start and enable Nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Setup port forwarding from 8080 to 80
+      command: iptables -t nat -A PREROUTING -p tcp --dport 8080 -j REDIRECT --to-port 80
